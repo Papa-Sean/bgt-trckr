@@ -1,23 +1,24 @@
-console.log("Service working during a pandemic!");
-
 const CACHE_NAME = "static-cache-v2";
 const DATA_CACHE_NAME = "data-cache-v1";
 
+// Cache Files
 const FILES_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/indexedDB.js',
-  '/icons/icon-btg-trckr.png',
-  '/icons/icon-btg-trckr-bigger.png',
-  '/styles.css'
+  "/",
+  "/index.html",
+  "/index.js",
+  "/indexedDB.js",
+  "/manifest.webmanifest",
+  "/styles.css",
+  "/icons/icon-btg-trckr.png",
+  "/icons/icon-btg-trckr-bigger.png",
 ];
 
-// install
-self.addEventListener("install", function(evt) {
+// Files saved for offline use
+// install service worker
+self.addEventListener("install", function (evt) {
   evt.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      console.log("Your files were pre-cached successfully!");
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("Your files were cached successfully!");
       return cache.addAll(FILES_TO_CACHE);
     })
   );
@@ -25,11 +26,12 @@ self.addEventListener("install", function(evt) {
   self.skipWaiting();
 });
 
-self.addEventListener("activate", function(evt) {
+// clear cache
+self.addEventListener("activate", function (evt) {
   evt.waitUntil(
-    caches.keys().then(keyList => {
+    caches.keys().then((keyList) => {
       return Promise.all(
-        keyList.map(key => {
+        keyList.map((key) => {
           if (key !== CACHE_NAME && key !== DATA_CACHE_NAME) {
             console.log("Removing old cache data", key);
             return caches.delete(key);
@@ -42,36 +44,36 @@ self.addEventListener("activate", function(evt) {
   self.clients.claim();
 });
 
-// fetch
-self.addEventListener("fetch", function(evt) {
-  // cache successful requests to the API
+// Fetching data from an API
+self.addEventListener("fetch", function (evt) {
   if (evt.request.url.includes("/api/")) {
+    console.log("[Service Worker] Fetch (data)", evt.request.url);
     evt.respondWith(
-      caches.open(DATA_CACHE_NAME).then(cache => {
-        return fetch(evt.request)
-          .then(response => {
-            // If the response was good, clone it and store it in the cache.
-            if (response.status === 200) {
-              cache.put(evt.request.url, response.clone());
-            }
-
-            return response;
-          })
-          .catch(err => {
-            // Network request failed, try to get it from the cache.
-            return cache.match(evt.request);
-          });
-      }).catch(err => console.log(err))
+      caches
+        .open(DATA_CACHE_NAME)
+        .then((cache) => {
+          return fetch(evt.request)
+            .then((response) => {
+              //Send to cache 
+              if (response.status === 200) {
+                cache.put(evt.request.url, response.clone());
+              }
+              return response;
+            })
+            .catch((err) => {
+              //access cache
+              return cache.match(evt.request);
+            });
+        })
+        .catch((err) => console.log(err))
     );
-
-    return;
+  } else {
+    evt.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(evt.request).then((response) => {
+          return response || fetch(evt.request);
+        });
+      })
+    );
   }
-
-  // if the request is not for the API, serve static assets using "offline-first" approach.
-  // see https://developers.google.com/web/fundamentals/instant-and-offline/offline-cookbook#cache-falling-back-to-network
-  evt.respondWith(
-    caches.match(evt.request).then(function(response) {
-      return response || fetch(evt.request);
-    })
-  );
 });
