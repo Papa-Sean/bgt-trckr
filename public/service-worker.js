@@ -7,7 +7,7 @@ const FILES_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/db.js',
+  '/indexedDB.js',
   '/icons/icon-btg-trckr.png',
   '/icons/icon-btg-trckr-bigger.png',
   '/styles.css'
